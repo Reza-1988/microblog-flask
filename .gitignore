@@ -1,14 +1,25 @@
+# Virtual environments
 .venv
+venv
+
+# IDE / Editor settings
 .idea
-*local_settings.py
+*.iml
+.vscode
+.project
+.pydevproject
+
+# Mac / OS files
 .DS_Store
 
+# Compiled Python files
 *.py[cod]
+__pycache__
 
 # C extensions
 *.so
 
-# Packages
+# Packages / Build
 *.egg
 *.egg-info
 dist
@@ -22,10 +33,10 @@ develop-eggs
 .installed.cfg
 lib
 lib64
-__pycache__
 
-# Installer logs
-pip-log.txt
+# Logs
+*.log
+microblog.log*
 
 # Unit test / coverage reports
 .coverage
@@ -35,11 +46,11 @@ nosetests.xml
 # Translations
 *.mo
 
-# Mr Developer
-.mr.developer.cfg
-.project
-.pydevproject
+# Local settings
+*local_settings.py
 
-venv
+# Flask instance folder (local runtime files)
+instance/
+
+# SQLite database
 app.db
-microblog.log*
