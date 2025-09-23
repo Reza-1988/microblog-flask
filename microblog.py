@@ -12,4 +12,3 @@ def make_shell_context():
 # import the returned objects into the shell session.
 # We return a dictionary (not a list) because each object must be given a name
 # (the dict key) so it can be referenced directly in the shell, e.g. `db`, `User`, `Post`.
-
