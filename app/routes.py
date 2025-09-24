@@ -1,12 +1,15 @@
 from flask import render_template, redirect, flash, url_for
 from app import app, db
 from app.forms import LoginForm
-from flask_login import current_user, login_user, logout_user
+from flask_login import current_user, login_user, logout_user, login_required
 import sqlalchemy as sa
 from app.models import User
+from flask import request
+from urllib.parse import urlsplit
 
 @app.route('/')
 @app.route('/index')
+@login_required
 def index():
     user = {
         "username": "Reza"
@@ -51,6 +54,20 @@ def login():
         # Credentials are valid → log the user in.
         # `remember=` controls a long-lived session cookie if the user checked the box.
         login_user(user, remember=form.remember_me.data)
+
+        # Get the "next" parameter from the query string (e.g. /login?next=/profile).
+        # This parameter tells the app where the user wanted to go before being redirected to login.
+        next_page = request.args.get('next')
+
+        # If "next" is not provided OR it points to a full external URL (with a domain),
+        # then redirect the user to the index page instead.
+        # This prevents "open redirect" attacks, where a malicious site could trick users
+        # into logging in and then redirect them outside your app.
+        if not next_page or urlsplit(next_page).netloc != '':
+            next_page = url_for('index')
+
+        # Finally, redirect the user to the safe destination.
+        return redirect(next_page)
 
     # GET request (or failed POST): render the template with the form (and any flashed errors).
     return render_template('login.html',title='Sign In', form=form)

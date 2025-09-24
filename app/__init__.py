@@ -11,4 +11,8 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 login = LoginManager(app)
 
+# The 'login' value above is the function (or endpoint) name for the login view.
+# In other words, the name you would use in a url_for() call to get the URL.
+login.login_view = 'login'
+
 from app import routes, models
