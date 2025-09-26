@@ -3,8 +3,16 @@
 
 {% block content %}
     <h1>Register</h1>
+    <h1>Register</h1>
     <form action="" method="post">
+    <!-- HTML form starts here:
+     - action="" → send the form submission back to the same URL that rendered this page.
+     - method="post" → use the HTTP POST method to send form data (safer than GET for passwords). -->
       {{ form.hidden_tag() }}
+      <!-- Flask-WTF helper:
+     - generates hidden <input> fields that are required by Flask-WTF.
+     - includes the CSRF token for protection against Cross-Site Request Forgery attacks.
+     - CSRF token ensures the form was submitted by your site, not by a malicious external site. -->
       <p>
         {{ form.username.label }}<br>
         {{ form.username(size=32) }}<br>
@@ -36,6 +44,4 @@
       <p>{{form.submit()}}</p>
     </form>
 {% endblock %}
-
-
 
