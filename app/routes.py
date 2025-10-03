@@ -6,6 +6,7 @@ import sqlalchemy as sa
 from app.models import User
 from flask import request
 from urllib.parse import urlsplit
+from datetime import datetime, timezone
 
 @app.route('/')
 @app.route('/index')
@@ -102,3 +103,19 @@ def user(username):
     ]
     return render_template('user.html', user=user, posts=posts)
 
+
+# The @app.before_request decorator registers this function to run
+# automatically before every request. It allows us to insert logic (like
+# updating the user's last_seen timestamp) without repeating the same code
+# in every route handler.
+@app.before_request
+# Update the user's "last_seen" timestamp to the current UTC time
+# before handling each request (if the user is authenticated).
+# Although the database column has a default value for when a new user is created,
+# we use this to keep updating the field on each visit.
+def before_request():
+    if current_user.is_authenticated:
+        current_user.last_seen = datetime.now(timezone.utc)
+        # No need to call db.session.add(current_user) because Flask-Login
+        # already loads the user into the session.
+        db.session.commit()
