@@ -5,6 +5,7 @@ from flask_migrate import Migrate
 from flask_login import LoginManager
 
 
+
 app = Flask(__name__)
 app.config.from_object(Config)
 db = SQLAlchemy(app)
@@ -15,4 +16,4 @@ login = LoginManager(app)
 # In other words, the name you would use in a url_for() call to get the URL.
 login.login_view = 'login'
 
-from app import routes, models
+from app import routes, models, errors
