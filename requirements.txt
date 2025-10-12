@@ -1,4 +1,7 @@
+aiosmtpd==1.4.6
 alembic==1.16.5
+atpublic==6.0.2
+attrs==25.4.0
 blinker==1.9.0
 click==8.2.1
 dnspython==2.8.0
