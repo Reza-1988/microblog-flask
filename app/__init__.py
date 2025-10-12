@@ -28,7 +28,7 @@ if not app.debug:
     if app.config['MAIL_SERVER']:
         # auth is a tuple of (username, password).
         auth = None
-        if app.config['Mail_USERNAME'] or app.config['MAIL_PASSWORD']:
+        if app.config['MAIL_USERNAME'] or app.config['MAIL_PASSWORD']:
             auth = (app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
         # 'secure' is for enabling TLS encryption in SMTP.
         # If secure = None → no TLS is used.
