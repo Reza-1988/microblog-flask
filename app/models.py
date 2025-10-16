@@ -21,10 +21,6 @@ followers = sa.Table(
     )
 
 
-
-
-
-
 class User(UserMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True, unique=True)
@@ -37,6 +33,16 @@ class User(UserMixin, db.Model):
 
     # so.WriteOnlyMapped, defines posts as a collection type with Post objects inside.
     posts: so.WriteOnlyMapped["Post"] = so.relationship(back_populates="author")
+
+    following: so.WriteOnlyMapped['User'] = so.relationship(
+        secondary=followers, primaryjoin=(followers.c.follower_id == id),
+        secondaryjoin=(followers.c.followed_id == id),
+        back_populates='followers')
+    followers: so.WriteOnlyMapped['User'] = so.relationship(
+        secondary=followers, primaryjoin=(followers.c.followed_id == id),
+        secondaryjoin=(followers.c.follower_id == id),
+        back_populates='following')
+
 
     def __repr__(self):
         return "<User {}>".format(self.username)
