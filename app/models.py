@@ -10,15 +10,39 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db, login
 
+# Association table for the "followers" relationship between users.
+# This table implements a many-to-many relationship where:
+# - one user can follow many other users
+# - and one user can be followed by many users
+# We use a plain Table (not a db.Model) because this table only stores
+# the relationship itself and does not need its own model class.
 
 followers = sa.Table(
-    'followers',
-    db.metadata,
-    sa.Column('follower_id', sa.Integer, sa.ForeignKey('user.id'),
-              primary_key=True),
-    sa.Column('followed_id', sa.Integer, sa.ForeignKey('user.id'),
-              primary_key=True)
-    )
+    "followers",  # The actual name of the table in the database
+    db.metadata,  # Registers this table in the application's metadata
+    # (so that db.create_all() knows to create it)
+    # The ID of the user who is following someone
+    sa.Column(
+        "follower_id",
+        sa.Integer,
+        sa.ForeignKey("user.id"),  # references user.id
+        primary_key=True,
+    ),  # part of the composite primary key
+    # The ID of the user who is being followed
+    sa.Column(
+        "followed_id",
+        sa.Integer,
+        sa.ForeignKey("user.id"),  # also references user.id
+        primary_key=True,
+    ),  # part of the composite primary key
+)
+
+# Notes:
+# - Both columns together form a composite primary key.
+#   This means each (follower_id, followed_id) pair must be unique.
+# - A user can follow multiple users, and be followed by multiple users.
+# - You must define this table ABOVE the User model in models.py,
+#   because the User model will reference it later.
 
 
 class User(UserMixin, db.Model):
@@ -34,15 +58,36 @@ class User(UserMixin, db.Model):
     # so.WriteOnlyMapped, defines posts as a collection type with Post objects inside.
     posts: so.WriteOnlyMapped["Post"] = so.relationship(back_populates="author")
 
-    following: so.WriteOnlyMapped['User'] = so.relationship(
-        secondary=followers, primaryjoin=(followers.c.follower_id == id),
+    # Relationship: list of users that this user is following
+    following: so.WriteOnlyMapped["User"] = so.relationship(
+        secondary=followers,
+        # The association table that links users to each other (many-to-many)
+        primaryjoin=(followers.c.follower_id == id),
+        # How this user connects to the association table:
+        # find all rows in 'followers' where follower_id == this user's id
+        # → "which follow relationships start from me"
         secondaryjoin=(followers.c.followed_id == id),
-        back_populates='followers')
-    followers: so.WriteOnlyMapped['User'] = so.relationship(
-        secondary=followers, primaryjoin=(followers.c.followed_id == id),
-        secondaryjoin=(followers.c.follower_id == id),
-        back_populates='following')
+        # How to connect from the association table to the target users:
+        # match followers.followed_id with user.id of the other users
+        # → "which users I'm following"
+        back_populates="followers",
+        # Links this relationship with the opposite side (followers),
+        # so changes in one are automatically reflected in the other.
+    )
 
+    # Relationship: list of users that are following this user
+    followers: so.WriteOnlyMapped["User"] = so.relationship(
+        secondary=followers,
+        # Same association table is used, but the join directions are reversed.
+        primaryjoin=(followers.c.followed_id == id),
+        # Now this user's id is matched with followed_id
+        # → "find all rows where someone is following ME"
+        secondaryjoin=(followers.c.follower_id == id),
+        # Then match follower_id to get the user objects of those followers
+        # → "which users are following me"
+        back_populates="following",
+        # Links back to the 'following' relationship for two-way sync.
+    )
 
     def __repr__(self):
         return "<User {}>".format(self.username)
@@ -84,4 +129,3 @@ class Post(db.Model):
 
     def __repr__(self):
         return "<Post {}>".format(self.body)
-
