@@ -102,27 +102,79 @@ class User(UserMixin, db.Model):
         digest = md5(self.email.lower().encode("utf-8")).hexdigest()
         return f"https://www.gravatar.com/avatar/{digest}?d=identicon&s={size}"
 
+    # Follow another user (create the relationship in the association table)
     def follow(self, user):
+        # Only add if the relationship doesn't already exist
         if not self.is_following(user):
+            # self.following is a relationship (many-to-many)
+            # .add() works if the relationship is a set; use .append() if it's a list
             self.following.add(user)
 
+    # Unfollow a user (remove the relationship from the association table)
     def unfollow(self, user):
+        # Only remove if the relationship currently exists
         if self.is_following(user):
             self.following.remove(user)
 
+    # Check if the current user is following another user
     def is_following(self, user):
+        # self.following.select() builds a SELECT query based on the "following" relationship
+        # It joins the association table + users table behind the scenes,
+        # and filters all rows where follower_id = self.id.
         query = self.following.select().where(User.id == user.id)
-        return db.ssesion.scalar(query) is not None
+        # The WHERE condition limits results to a single user (the one passed as argument)
+        # e.g. ... WHERE followers.follower_id = self.id AND users.id = user.id
 
+        # scalar(query) executes the query and returns the first value of the first row,
+        # or None if there is no match.
+        return db.session.scalar(query) is not None
+
+    # Count how many users follow this user
     def followers_count(self):
-        query = sa.select(sa.func.count()).select_from(
-            self.followers.select().subquery())
-        return db.session.scalar(query)
+        # Build a subquery from the "followers" relationship (users following self)
+        # This generates something like:
+        #   SELECT users.* FROM followers
+        #   JOIN users ON followers.follower_id = users.id
+        #   WHERE followers.followed_id = self.id
+        inner_query = self.followers.select().subquery()
 
+        # Wrap that subquery in a COUNT(*) query:
+        #   SELECT COUNT(*) FROM (inner_query) AS anon
+        count_query = sa.select(sa.func.count()).select_from(inner_query)
+
+        # Execute and return the scalar count result
+        return db.session.scalar(count_query)
+
+    # Count how many users this user is following
     def following_count(self):
-        query  = sa.select(sa.func.count()).select_from(
-            self.following.select().subquery())
-        return db.ssesion.scalar(query)
+        # Similar logic, but using the "following" relationship
+        # → users that self is following
+        inner_query = self.following.select().subquery()
+        count_query = sa.select(sa.func.count()).select_from(inner_query)
+        return db.session.scalar(count_query)
+
+    def following_posts(self):
+        # Create aliases for the User table so we can use it twice in the same query:
+        # - Author: represents the users who wrote the posts
+        # - Follower: represents the users who follow those authors
+        Author = so.aliased(User)
+        Follower = so.aliased(User)
+
+        return (
+            sa.select(Post)  # 1. Start by selecting posts as the result of the query
+            # 2. Join the Post table to the User table (as Author) through the 'author' relationship.
+            # SQLAlchemy automatically uses post.user_id = author.id for this join.
+            .join(Post.author.of_type(Author))
+            # 3. Join from the Author to their followers (via the association table).
+            # Here, Follower is another alias of the User table, representing people who follow the author.
+            .join(Author.followers.of_type(Follower))
+            # 4. Filter the rows to keep only those where the follower is the current user (self).
+            # In other words, only include posts written by users that 'self' follows.
+            .where(Follower.id == self.id)
+            # 5. Order the posts from newest to oldest by timestamp.
+            .order_by(Post.timestamp.desc())
+        )
+
 
 @login.user_loader
 def load_user(id):
