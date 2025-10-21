@@ -154,24 +154,47 @@ class User(UserMixin, db.Model):
         return db.session.scalar(count_query)
 
     def following_posts(self):
-        # Create aliases for the User table so we can use it twice in the same query:
-        # - Author: represents the users who wrote the posts
-        # - Follower: represents the users who follow those authors
+        # 🧩 1. Create aliases for the User table so we can use it twice in the same query:
+        # - Author: represents the users who WROTE the posts
+        # - Follower: represents the users who FOLLOW those authors
+        # (Using aliases prevents confusion when joining the same table twice)
         Author = so.aliased(User)
         Follower = so.aliased(User)
 
         return (
-            sa.select(Post)  # 1. Start by selecting posts as the result of the query
-            # 2. Join the Post table to the User table (as Author) through the 'author' relationship.
-            # SQLAlchemy automatically uses post.user_id = author.id for this join.
+            sa.select(Post)
+            # 2. Start building the query by selecting posts as the main result.
+
+            # 3. Join the Post table to the User table (as Author) through the 'author' relationship.
+            # SQLAlchemy automatically knows that this means:
+            #   post.user_id = author.id
+            # So now, each Post row is connected to the User (Author) who wrote it.
             .join(Post.author.of_type(Author))
-            # 3. Join from the Author to their followers (via the association table).
-            # Here, Follower is another alias of the User table, representing people who follow the author.
-            .join(Author.followers.of_type(Follower))
-            # 4. Filter the rows to keep only those where the follower is the current user (self).
-            # In other words, only include posts written by users that 'self' follows.
-            .where(Follower.id == self.id)
-            # 5. Order the posts from newest to oldest by timestamp.
+
+            # 4. Join again — this time from the Author to their followers.
+            # 'Author.followers' uses the many-to-many association table "followers"
+            # that connects authors to the users who follow them.
+            # Setting `isouter=True` means we use a LEFT OUTER JOIN,
+            # so that even if an author has NO followers, their posts still appear.
+            .join(Author.followers.of_type(Follower), isouter=True)
+
+            # 5. Add a WHERE condition to limit which posts we see.
+            # The condition uses OR to include two cases:
+            #   a) Follower.id == self.id  → posts from authors that the current user follows
+            #   b) Author.id == self.id    → posts written by the current user themselves
+            # This ensures the feed shows both the user's own posts and their followings’ posts.
+            .where(sa.or_(
+                Follower.id == self.id,
+                Author.id == self.id,
+            ))
+
+            # 6. Group by Post to remove duplicate rows.
+            # Why? Because one author can have multiple followers, which would create
+            # multiple identical rows for the same post after the join.
+            # GROUP BY Post collapses those duplicates into a single row per post.
+            .group_by(Post)
+
+            # 7. Finally, order the posts from newest to oldest.
             .order_by(Post.timestamp.desc())
         )
 
