@@ -58,3 +58,13 @@ class EditProfileForm(FlaskForm):
             )
             if user is not None:
                 raise ValidationError("Please use a different username.")
+
+# EmptyForm is a simple Flask-WTF form used for actions like "Follow" or "Unfollow".
+# It does not collect any user data — the form is intentionally empty.
+# The only fields included are:
+#   - A hidden CSRF token (added automatically by Flask-WTF for security)
+#   - A submit button that triggers the action
+# Using a form allows these actions to be sent as POST requests,
+# which makes them secure against CSRF attacks compared to simple GET links.
+class EmptyForm(FlaskForm):
+    submit = SubmitField("Submit")
