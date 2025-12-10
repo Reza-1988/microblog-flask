@@ -154,7 +154,7 @@ class User(UserMixin, db.Model):
         return db.session.scalar(count_query)
 
     def following_posts(self):
-        # 🧩 1. Create aliases for the User table so we can use it twice in the same query:
+        # 1. Create aliases for the User table so we can use it twice in the same query:
         # - Author: represents the users who WROTE the posts
         # - Follower: represents the users who FOLLOW those authors
         # (Using aliases prevents confusion when joining the same table twice)
